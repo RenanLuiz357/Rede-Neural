@@ -1,0 +1,88 @@
+import os
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from numpy import expand_dims, argmax
+
+from keras.models import Sequential, load_model
+from keras.layers import Conv2D, MaxPooling2D, Flatten
+from keras.layers import Dense
+from keras.preprocessing import image
+from keras.preprocessing.image import ImageDataGenerator
+imagem_W, imagem_H = 100, 100
+kernel, downscale = 3, 2
+path = 'dataset'
+epochs = 4
+
+trainImgs = ImageDataGenerator(rescale = 1./255, shear_range = 0.2, zoom_range = 0.2, horizontal_flip = True)
+testImgs = ImageDataGenerator(rescale = 1./255)
+train = trainImgs.flow_from_directory(path + '/train', target_size = (imagem_W, imagem_H), batch_size = 16, class_mode = 'categorical')
+test = testImgs.flow_from_directory(path + '/test', target_size = (imagem_W, imagem_H), batch_size = 16, class_mode = 'categorical')
+classes = list(train.class_indices.keys())
+
+cnn = Sequential()
+cnn.add(Conv2D(
+        32, kernel, input_shape = (imagem_W, imagem_H, 3),
+        activation = 'relu'))
+cnn.add(MaxPooling2D(
+        pool_size = (downscale, downscale)))
+cnn.add(Conv2D(
+        64, kernel, activation = 'relu'))
+cnn.add(MaxPooling2D(
+        pool_size = (downscale, downscale)))
+cnn.add(Conv2D(
+        128, kernel, activation = 'relu'))
+cnn.add(MaxPooling2D(
+        pool_size = (downscale, downscale)))
+cnn.add(Flatten())
+
+cnn.add(Dense(
+        units = 256, activation = 'relu'))
+cnn.add(Dense(
+        units = len(classes), activation = 'softmax'))
+cnn.compile(optimizer = 'adam', loss = 'categorical_crossentropy', metrics = ['accuracy'])
+
+history = cnn.fit_generator(train, epochs = epochs, validation_data = test)
+cnn.save('cnn-fruit.h5')
+cnn = load_model('cnn-fruit.h5')
+
+for i in range(0, 18):
+    file = path + '/Fruta Identificada-' + str(i) + '.jpg'
+    img = image.load_img(
+            file, target_size = (imagem_W, imagem_H))
+    y = cnn.predict(expand_dims(
+            image.img_to_array(img), axis = 0))
+    print('PREDIÇÃO: ', file, ':', classes[argmax(y)])
+
+
+'model.save(path/to/model)'
+'model = tf.keras.models.load_model(path/to/model)'
+
+
+def plot_model():
+
+  accuracy = history.history['accuracy']
+  val_accuracy = history.history['val_accuracy']
+
+  loss = history.history['loss']
+  val_loss = history.history['val_loss']
+
+  epochs_range = range(epochs)
+
+  plt.gcf().clear()
+  plt.figure(figsize = (15, 8))
+
+  plt.subplot(1, 2, 1)
+  plt.title('Training and Validation Accuracy')
+  plt.plot(epochs_range, accuracy, label = 'Training Accuracy')
+  plt.plot(epochs_range, val_accuracy, label = 'Validation Accuracy')
+  plt.legend(loc = 'lower right')
+
+  plt.subplot(1, 2, 2)
+  plt.title('Training and Validation Loss')
+  plt.plot(epochs_range, loss, label = 'Training Loss')
+  plt.plot(epochs_range, val_loss, label = 'Validation Loss')
+  plt.legend(loc = 'lower right')
+
+  plt.show()
+  
+  plot_model()
